@@ -1,7 +1,8 @@
 body {
   margin: 0;
+  background-color: black;
 }
 
 .point-pack-canvas {
-  border: solid 4px black;
+  border: solid 4px rgb(121, 121, 121);
 }

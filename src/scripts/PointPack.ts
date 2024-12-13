@@ -18,6 +18,7 @@ class PointPack {
   centerY: number;
 
   options: {
+    clear: string;
     pointColor: string;
     backPointColor: string;
 
@@ -43,17 +44,18 @@ class PointPack {
     this.ctx = this.canvas.getContext('2d')!;
 
     this.options = {
-      pointColor: 'black',
-      backPointColor: '#c6c6c6',
+      clear: 'black',
+      pointColor: '#790000',
+      backPointColor: '#290000',
 
-      pointSize: 6
+      pointSize: 8
     }
 
     this.nodes = [];
     this.n = 12;
 
     this.generateRandomNodes();
-    window.requestAnimationFrame(() => this.init(800, 8000));
+    window.requestAnimationFrame(() => this.init(1000, 100000));
     //this.gravitate(1000, 800, 8000);
   }
 
@@ -148,7 +150,7 @@ class PointPack {
   }
 
   private clearCanvas = () => {
-    this.ctx.fillStyle = 'white';
+    this.ctx.fillStyle = this.options.clear;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
