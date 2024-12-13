@@ -50,25 +50,35 @@ class PointPack {
     }
 
     this.nodes = [];
-    this.n = 40;
+    this.n = 12;
 
-    this.spreadNodes();
+    this.generateRandomNodes();
+    window.requestAnimationFrame(() => this.init(800, 8000));
+    //this.gravitate(1000, 800, 8000);
+  }
+
+  private init = (g: number, f: number) => {
+    this.adjustForGravity(g, f);
     this.render();
-    this.replaceNodes(100000);
+    window.requestAnimationFrame(() => this.init(g, f));
+  }
+
+  gravitate = (loopCount: number, g: number, f: number) => {
+    for (let l = 0; l < loopCount; l++) {
+      this.adjustForGravity(g, f);
+    }
+    this.render();
   }
 
   /**
    * randomly spreads a number of nodes around a spherical plane
    */
-  spreadNodes = () => {
+  generateRandomNodes = () => {
     // reset nodes array
     this.nodes = [];
-
     for (let i = 0; i < this.n; i++) {
       this.nodes.push(this.generateRandomNode());
     }
-
-    console.log(this.nodes);
   }
 
   private generateRandomNode = () => {
@@ -79,86 +89,31 @@ class PointPack {
     return new Point(x*this.sphereDiameter, y*this.sphereDiameter, z*this.sphereDiameter);
   }
 
-  private getAverage = () => {
-    let totX = 0;
-    let totY = 0;
-    let totZ = 0;
+  private adjustForGravity = (g: number, f: number) => {
     for (let i = 0; i < this.n; i++) {
-      totX += this.nodes[i].x;
-      totY += this.nodes[i].y;
-      totZ += this.nodes[i].z;
-    }
-    const x = totX/this.n;
-    const y = totY/this.n;
-    const z = totZ/this.n;
-    return {x, y, z}
-  }
-
-  private getWorstNodeIndex = () => {
-    const {x, y, z} =  this.getAverage();
-    let totX = 0;
-    let totY = 0;
-    let totZ = 0;
-    let worstNodeIndex = 0;
-    let worstNodeDistance = Infinity;
-    for (let i = 0; i < this.n; i++) {
+      let fX = 0;
+      let fY = 0;
+      let fZ = 0;
+      const p1 = this.nodes[i];
       for (let j = 0; j < this.n; j++) {
         if (i === j) continue;
-        totX += this.nodes[i].x;
-        totY += this.nodes[i].y;
-        totZ += this.nodes[i].z;
+        const p2 = this.nodes[j];
+        const dx = p1.x - p2.x;
+        const dy = p1.y - p2.y;
+        const dz = p1.z - p2.z;
+        const dist = Math.sqrt(dx**2 + dy**2 + dz**2);
+        if (dist < f) {
+          const F = g * 1/dist;
+          fX += F*dx;
+          fY += F*dy;
+          fZ += F*dz;
+        }
       }
-      const aX = -totX/(this.n - 1);
-      const aY = -totY/(this.n - 1);
-      const aZ = -totZ/(this.n - 1);
-      const dist = this.distanceFormula(x, y, z, aX, aY, aZ);
-      if (dist < worstNodeDistance) {
-        worstNodeDistance = dist;
-        worstNodeIndex = i;
-      }
+      const {x, y, z} = this.projectNodeToSphere(p1.x + fX,p1.y + fY, p1.z + fZ);
+      p1.x = x*this.sphereDiameter;
+      p1.y = y*this.sphereDiameter;
+      p1.z = z*this.sphereDiameter;
     }
-    return worstNodeIndex;
-  }
-
-  private replaceNodes = (loops: number) => {
-    for (let i = 0; i < loops; i++) {
-      this.replaceNode(this.getWorstNodeIndex());
-    }
-    this.render();
-  }
-
-  private replaceNode = (nodeIndex: number) => {
-    this.nodes[nodeIndex] = this.generateRandomNode();
-  }
-
-  // wolf all nodes once for every loop
-  private wolfNodes = (loops: number) => {
-    for (let i = 0; i < loops; i++) {
-      this.wolfNode(this.getWorstNodeIndex());
-    }
-    this.render();
-  }
-
-  // move a node on the sphere as far as possible from all the rest
-  private wolfNode = (nodeIndex: number) => {
-    let totX = 0;
-    let totY = 0;
-    let totZ = 0;
-    for (let i = 0; i < this.n; i++) {
-      if (i === nodeIndex) continue;
-      totX += this.nodes[i].x;
-      totY += this.nodes[i].y;
-      totZ += this.nodes[i].z;
-    }
-    const aX = -totX/(this.n - 1);
-    const aY = -totY/(this.n - 1);
-    const aZ = -totZ/(this.n - 1);
-
-    const {x, y, z} = this.projectNodeToSphere(aX, aY, aZ);
-
-    this.nodes[nodeIndex].x = x*this.sphereDiameter;
-    this.nodes[nodeIndex].y = y*this.sphereDiameter;
-    this.nodes[nodeIndex].z = z*this.sphereDiameter;
   }
 
   private render = () => {
@@ -174,7 +129,6 @@ class PointPack {
     for (const node of drawFront) {
       this.drawNode(node, true);
     }
-    this.drawIco();
   }
 
   private distanceFormula = (x: number, y: number, z: number, dx: number, dy: number, dz: number): number => {
@@ -196,53 +150,6 @@ class PointPack {
   private clearCanvas = () => {
     this.ctx.fillStyle = 'white';
     this.ctx.fillRect(0, 0, this.width, this.height);
-  }
-
-  private drawIco = () => {
-    const ico: Point[] = [];
-    const g = (1+Math.sqrt(5))/4; // HALF golden ratio
-    const n = .5;
-    const r = this.distanceFormula(0, .5, g, 0, 0, 0);
-    const setNode = (x: number, y: number, z: number) => {
-      ico.push(new Point(
-        x * this.sphereDiameter, y * this.sphereDiameter, z * this.sphereDiameter
-      ));
-    }
-    // calculate values on x plane
-    for (let i = 0; i <= 3; i++) {
-      const y = g*(2*Math.floor(i/2) - 1);
-      const z = n*(2*(i%2) - 1);
-      setNode(0, y/r, z/r);
-    }
-    // calculate values on z plane
-    for (let i = 4; i <= 7; i++) {
-      const x = g*(2*Math.floor((i%4)/2) - 1);
-      const y = n*(2*(i%2) - 1);
-      setNode(x/r, y/r, 0);
-    }
-    // calculate values on y plane
-    for (let i = 8; i <= 11; i++) {
-      const x = n*(2*(i%2) - 1);
-      const z = g*(2*Math.floor((i%4)/2) - 1);
-      setNode(x/r, 0, z/r);
-    }
-    const drawIcoNode = (point: Point, front: boolean = false) => {
-      this.ctx.beginPath();
-      this.ctx.arc(point.x+this.centerX, point.y+this.centerY, 10, 0, 2*Math.PI);
-      this.ctx.fillStyle = front ? 'red' : 'FF0000aa';
-      this.ctx.fill()
-    }
-    const drawFront: Point[] = [];
-    for (const node of ico) {
-      if (node.z >= 0) {
-        drawFront.push(node);
-      } else {
-        drawIcoNode(node);
-      }
-    }
-    for (const node of drawFront) {
-      drawIcoNode(node, true);
-    }
   }
 
 }
