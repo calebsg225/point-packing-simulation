@@ -46,14 +46,15 @@ class PointPack {
       pointColor: 'black',
       backPointColor: '#c6c6c6',
 
-      pointSize: 2
+      pointSize: 6
     }
 
     this.nodes = [];
-    this.n = 500;
+    this.n = 400;
 
     this.spreadNodes();
     this.render();
+    this.wolfNodes(500);
   }
 
   /**
@@ -72,6 +73,38 @@ class PointPack {
     }
 
     console.log(this.nodes);
+  }
+
+  // wolf all nodes once for every loop
+  private wolfNodes = (loops: number) => {
+    for (let i = 0; i < loops; i++) {
+      for (let j = 0; j < this.n; j++) {
+        this.wolfNode(j);
+      }
+      this.render();
+    }
+  }
+
+  // move a node on the sphere as far as possible from all the rest
+  private wolfNode = (nodeIndex: number) => {
+    let totX = 0;
+    let totY = 0;
+    let totZ = 0;
+    for (let i = 0; i < this.n; i++) {
+      if (i === nodeIndex) continue;
+      totX += this.nodes[i].x;
+      totY += this.nodes[i].y;
+      totZ += this.nodes[i].z;
+    }
+    const aX = -totX/(this.n - 1);
+    const aY = -totY/(this.n - 1);
+    const aZ = -totZ/(this.n - 1);
+
+    const {x, y, z} = this.projectNodeToSphere(aX, aY, aZ);
+
+    this.nodes[nodeIndex].x = x*this.sphereDiameter;
+    this.nodes[nodeIndex].y = y*this.sphereDiameter;
+    this.nodes[nodeIndex].z = z*this.sphereDiameter;
   }
 
   private render = () => {
