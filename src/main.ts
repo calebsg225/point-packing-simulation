@@ -1,7 +1,4 @@
 import './styles/index.css';
+import PointPack from './scripts/PointPack';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <main>
-    point packing
-  </main>
-`
+new PointPack(document.querySelector('#app')!, 'point-pack-1');

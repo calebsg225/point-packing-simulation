@@ -1,3 +1,7 @@
-main {
-  color: red;
+body {
+  margin: 0;
+}
+
+.point-pack-canvas {
+  border: solid 4px black;
 }
