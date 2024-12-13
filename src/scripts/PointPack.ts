@@ -37,7 +37,7 @@ class PointPack {
     this.height = 1000;
     this.centerX = this.width/2;
     this.centerY = this.height/2;
-    this.sphereDiameter = 490;
+    this.sphereDiameter = 470;
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.ctx = this.canvas.getContext('2d')!;
@@ -50,11 +50,11 @@ class PointPack {
     }
 
     this.nodes = [];
-    this.n = 400;
+    this.n = 40;
 
     this.spreadNodes();
     this.render();
-    this.wolfNodes(500);
+    this.wolfNodes(0);
   }
 
   /**
@@ -81,8 +81,8 @@ class PointPack {
       for (let j = 0; j < this.n; j++) {
         this.wolfNode(j);
       }
-      this.render();
     }
+    this.render();
   }
 
   // move a node on the sphere as far as possible from all the rest
@@ -120,6 +120,7 @@ class PointPack {
     for (const node of drawFront) {
       this.drawNode(node, true);
     }
+    this.drawIco();
   }
 
   private distanceFormula = (x: number, y: number, z: number, dx: number, dy: number, dz: number): number => {
@@ -142,6 +143,54 @@ class PointPack {
     this.ctx.fillStyle = 'white';
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
+
+  private drawIco = () => {
+    const ico: Point[] = [];
+    const g = (1+Math.sqrt(5))/4; // HALF golden ratio
+    const n = .5;
+    const r = this.distanceFormula(0, .5, g, 0, 0, 0);
+    const setNode = (x: number, y: number, z: number) => {
+      ico.push(new Point(
+        x * this.sphereDiameter, y * this.sphereDiameter, z * this.sphereDiameter
+      ));
+    }
+    // calculate values on x plane
+    for (let i = 0; i <= 3; i++) {
+      const y = g*(2*Math.floor(i/2) - 1);
+      const z = n*(2*(i%2) - 1);
+      setNode(0, y/r, z/r);
+    }
+    // calculate values on z plane
+    for (let i = 4; i <= 7; i++) {
+      const x = g*(2*Math.floor((i%4)/2) - 1);
+      const y = n*(2*(i%2) - 1);
+      setNode(x/r, y/r, 0);
+    }
+    // calculate values on y plane
+    for (let i = 8; i <= 11; i++) {
+      const x = n*(2*(i%2) - 1);
+      const z = g*(2*Math.floor((i%4)/2) - 1);
+      setNode(x/r, 0, z/r);
+    }
+    const drawIcoNode = (point: Point, front: boolean = false) => {
+      this.ctx.beginPath();
+      this.ctx.arc(point.x+this.centerX, point.y+this.centerY, 10, 0, 2*Math.PI);
+      this.ctx.fillStyle = front ? 'red' : 'FF0000aa';
+      this.ctx.fill()
+    }
+    const drawFront: Point[] = [];
+    for (const node of ico) {
+      if (node.z >= 0) {
+        drawFront.push(node);
+      } else {
+        drawIcoNode(node);
+      }
+    }
+    for (const node of drawFront) {
+      drawIcoNode(node, true);
+    }
+  }
+
 }
 
 export default PointPack;
