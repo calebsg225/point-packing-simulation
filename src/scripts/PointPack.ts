@@ -54,7 +54,7 @@ class PointPack {
 
     this.spreadNodes();
     this.render();
-    this.wolfNodes(0);
+    this.replaceNodes(100000);
   }
 
   /**
@@ -65,22 +65,76 @@ class PointPack {
     this.nodes = [];
 
     for (let i = 0; i < this.n; i++) {
-      const randX = (Math.random() - .5) * this.sphereDiameter;
-      const randY = (Math.random() - .5) * this.sphereDiameter;
-      const randZ = (Math.random() - .5) * this.sphereDiameter;
-      const {x, y, z} = this.projectNodeToSphere(randX, randY, randZ);
-      this.nodes.push(new Point(x*this.sphereDiameter, y*this.sphereDiameter, z*this.sphereDiameter));
+      this.nodes.push(this.generateRandomNode());
     }
 
     console.log(this.nodes);
   }
 
+  private generateRandomNode = () => {
+    const randX = (Math.random() - .5) * this.sphereDiameter;
+    const randY = (Math.random() - .5) * this.sphereDiameter;
+    const randZ = (Math.random() - .5) * this.sphereDiameter;
+    const {x, y, z} = this.projectNodeToSphere(randX, randY, randZ);
+    return new Point(x*this.sphereDiameter, y*this.sphereDiameter, z*this.sphereDiameter);
+  }
+
+  private getAverage = () => {
+    let totX = 0;
+    let totY = 0;
+    let totZ = 0;
+    for (let i = 0; i < this.n; i++) {
+      totX += this.nodes[i].x;
+      totY += this.nodes[i].y;
+      totZ += this.nodes[i].z;
+    }
+    const x = totX/this.n;
+    const y = totY/this.n;
+    const z = totZ/this.n;
+    return {x, y, z}
+  }
+
+  private getWorstNodeIndex = () => {
+    const {x, y, z} =  this.getAverage();
+    let totX = 0;
+    let totY = 0;
+    let totZ = 0;
+    let worstNodeIndex = 0;
+    let worstNodeDistance = Infinity;
+    for (let i = 0; i < this.n; i++) {
+      for (let j = 0; j < this.n; j++) {
+        if (i === j) continue;
+        totX += this.nodes[i].x;
+        totY += this.nodes[i].y;
+        totZ += this.nodes[i].z;
+      }
+      const aX = -totX/(this.n - 1);
+      const aY = -totY/(this.n - 1);
+      const aZ = -totZ/(this.n - 1);
+      const dist = this.distanceFormula(x, y, z, aX, aY, aZ);
+      if (dist < worstNodeDistance) {
+        worstNodeDistance = dist;
+        worstNodeIndex = i;
+      }
+    }
+    return worstNodeIndex;
+  }
+
+  private replaceNodes = (loops: number) => {
+    for (let i = 0; i < loops; i++) {
+      this.replaceNode(this.getWorstNodeIndex());
+    }
+    this.render();
+  }
+
+  private replaceNode = (nodeIndex: number) => {
+    this.nodes[nodeIndex] = this.generateRandomNode();
+  }
+
   // wolf all nodes once for every loop
   private wolfNodes = (loops: number) => {
     for (let i = 0; i < loops; i++) {
-      for (let j = 0; j < this.n; j++) {
-        this.wolfNode(j);
-      }
+      this.wolfNode(this.getWorstNodeIndex());
     }
     this.render();
   }
