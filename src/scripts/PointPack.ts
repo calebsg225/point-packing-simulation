@@ -19,6 +19,8 @@ class PointPack {
   centerX: number;
   centerY: number;
 
+  mouseIsDown: boolean;
+
   options: {
     clear: string;
     pointColor: string;
@@ -49,6 +51,8 @@ class PointPack {
     this.canvas.height = this.height;
     this.ctx = this.canvas.getContext('2d')!;
 
+    this.mouseIsDown = false;
+
     this.options = {
       clear: 'black',
       pointColor: '#d90000',
@@ -62,8 +66,9 @@ class PointPack {
     }
 
     this.nodes = [];
-    this.n = 32;
+    this.n = 14;
 
+    this.generateEventListeners();
     this.generateRandomNodes();
     //window.requestAnimationFrame(() => this.init(1000, 100000, 0));
     this.gravitate(100000, 1000, 10000);
@@ -101,7 +106,7 @@ class PointPack {
         const dist = +this.distanceFormula(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z).toFixed(5);
         minDist = Math.min(minDist, dist);
 
-        if (dist < minDist*Math.sqrt(2)) {
+        if (dist < minDist*Math.sqrt(2) - 1) {
           dists.set(key, dist);
         }
 
@@ -111,7 +116,7 @@ class PointPack {
     }
 
     // add edges to be drawn
-    const tolerance = minDist*Math.sqrt(2);
+    const tolerance = minDist*Math.sqrt(2) - 1;
     for (const key of dists.keys()) {
       if (dists.get(key)! < tolerance) {
         const [i, j] = key.split('-');
@@ -119,9 +124,6 @@ class PointPack {
         this.nodes[+j].edges.push(key);
       }
     }
-
-    console.log(minDist, dists);
-    console.log(this.nodes);
   }
 
   /**
@@ -266,6 +268,19 @@ class PointPack {
     return {x: nX, y: nY, z: nZ}
   }
 
+  private generateEventListeners = () => {
+    document.addEventListener('mouseup', () => {
+      this.mouseIsDown = false;
+    });
+    this.canvas.addEventListener('mousedown', () => {
+      this.mouseIsDown = true;
+    });
+    this.canvas.addEventListener('mousemove', (e) => {
+      if (!this.mouseIsDown) return;
+      this.rotate(e.movementX, e.movementY);
+    });
+  }
+
   private rotate = (x: number, y: number) => {
     this.nodes.forEach((node) => {
       const { x: newX, y: newY, z: newZ } = this.calculateRotatedCoordinates(node.x, node.y, node.z, x, y, 0, 0.002);
@@ -275,11 +290,6 @@ class PointPack {
     });
     this.render();
   }
-
-  /**
-   * 
-   */
-  private getNearest = () => {}
 
 }
 
