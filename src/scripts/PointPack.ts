@@ -15,8 +15,6 @@ class PointPack {
   interface: HTMLDivElement;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
-  width: number;
-  height: number;
   centerX: number;
   centerY: number;
 
@@ -40,14 +38,14 @@ class PointPack {
   nodes: Point[];
   n: number;
   iterations: number;
-  constructor(canvasElement: HTMLElement, pointPackId: string) {
+  constructor(parentElement: HTMLElement, pointPackId: string) {
     if (pointPackId.length < 5) throw new Error('id must be at least five characters');
 
     
-    this.n = Math.floor(Math.random() * 20);
+    this.n = Math.floor(Math.random() * 17) + 3;
     this.iterations = 10000;
 
-    canvasElement.innerHTML = canvasElement.innerHTML + `
+    parentElement.innerHTML = parentElement.innerHTML + `
       <div class="point-pack-container" id="${pointPackId}">
         <canvas class="point-pack-canvas" id="${pointPackId}-canvas"></canvas>
         <div class="point-pack-user-interface-container" id="${pointPackId}-interface">
@@ -70,15 +68,26 @@ class PointPack {
     `;
     this.canvas = document.querySelector<HTMLCanvasElement>('#' + pointPackId + '-canvas')!;
     this.interface = document.querySelector<HTMLDivElement>('#' + pointPackId + '-interface')!;
-    this.width = 1000;
-    this.height = 1000;
-    this.centerX = this.width/2;
-    this.centerY = this.height/2;
-    this.sphereRadius = 470;
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
-    this.ctx = this.canvas.getContext('2d')!;
+    const nw = parentElement.clientWidth;
+    const nh = parentElement.clientHeight;
+    this.centerX = nw/2;
+    this.centerY = nh/2;
+    this.sphereRadius = .95 * (Math.min(nw, nh, 1000)/2);
+    this.canvas.width = nw;
+    this.canvas.height = nh;
 
+    window.addEventListener('resize', () => {
+      const nw = parentElement.clientWidth;
+      const nh = parentElement.clientHeight;
+      this.centerX = nw/2;
+      this.centerY = nh/2;
+      this.canvas.width = nw;
+      this.canvas.height = nh;
+      this.sphereRadius = .95 * (Math.min(nw, nh, 1000)/2);
+      this.render();
+    });
+
+    this.ctx = this.canvas.getContext('2d')!;
     this.mouseIsDown = false;
     this.isInterfaceOpen = true;
     this.isLoading = false;
@@ -173,11 +182,11 @@ class PointPack {
   }
 
   private generateRandomNode = () => {
-    const randX = (Math.random() - .5) * this.sphereRadius;
-    const randY = (Math.random() - .5) * this.sphereRadius;
-    const randZ = (Math.random() - .5) * this.sphereRadius;
+    const randX = (Math.random() - .5);
+    const randY = (Math.random() - .5);
+    const randZ = (Math.random() - .5);
     const {x, y, z} = this.projectNodeToSphere(randX, randY, randZ);
-    return new Point(x*this.sphereRadius, y*this.sphereRadius, z*this.sphereRadius);
+    return new Point(x, y, z);
   }
 
   private adjustForGravity = (g: number, f: number) => {
@@ -201,9 +210,9 @@ class PointPack {
         }
       }
       const {x, y, z} = this.projectNodeToSphere(p1.x + fX,p1.y + fY, p1.z + fZ);
-      p1.x = x*this.sphereRadius;
-      p1.y = y*this.sphereRadius;
-      p1.z = z*this.sphereRadius;
+      p1.x = x;
+      p1.y = y;
+      p1.z = z;
     }
   }
 
@@ -261,16 +270,18 @@ class PointPack {
   }
 
   private drawNode = (point: Point, front: boolean = false) => {
+    const sr = this.sphereRadius
     this.ctx.beginPath();
-    this.ctx.arc(point.x+this.centerX, point.y+this.centerY, this.options.pointSize, 0, 2*Math.PI);
+    this.ctx.arc(point.x * sr+this.centerX, point.y * sr+this.centerY, this.options.pointSize, 0, 2*Math.PI);
     this.ctx.fillStyle = front ? this.options.pointColor : this.options.backPointColor;
     this.ctx.fill()
   }
 
   private drawEdge = (x: number, y: number, dx: number, dy: number, front: boolean = false) => {
+    const sr = this.sphereRadius
     this.ctx.beginPath();
-    this.ctx.moveTo(x+this.centerX, y+this.centerY);
-    this.ctx.lineTo(dx+this.centerX, dy+this.centerY);
+    this.ctx.moveTo(x*sr+this.centerX, y*sr+this.centerY);
+    this.ctx.lineTo(dx*sr+this.centerX, dy*sr+this.centerY);
     this.ctx.lineWidth = this.options.edgeWidth;
     this.ctx.strokeStyle = front ? this.options.edgeColor : this.options.edgeBackColor;
     this.ctx.stroke();
@@ -278,7 +289,7 @@ class PointPack {
 
   private clearCanvas = () => {
     this.ctx.fillStyle = this.options.clear;
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   calculateRotatedCoordinates = (
@@ -335,7 +346,7 @@ class PointPack {
       setTimeout(() => {
         this.start();
         this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = false;
-      }, 0);
+      }, 10);
     });
   }
 
