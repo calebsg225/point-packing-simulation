@@ -12,6 +12,7 @@ class Point {
 }
 
 class PointPack {
+  interface: HTMLDivElement;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   width: number;
@@ -20,6 +21,8 @@ class PointPack {
   centerY: number;
 
   mouseIsDown: boolean;
+  isInterfaceOpen: boolean;
+  isLoading: boolean;
 
   options: {
     clear: string;
@@ -36,12 +39,37 @@ class PointPack {
   sphereRadius: number;
   nodes: Point[];
   n: number;
-  constructor(canvasElement: HTMLElement, canvasId: string) {
+  iterations: number;
+  constructor(canvasElement: HTMLElement, pointPackId: string) {
+    if (pointPackId.length < 5) throw new Error('id must be at least five characters');
+
+    
+    this.n = Math.floor(Math.random() * 20);
+    this.iterations = 10000;
 
     canvasElement.innerHTML = canvasElement.innerHTML + `
-      <canvas class="point-pack-canvas" id="${canvasId}"></canvas>
+      <div class="point-pack-container" id="${pointPackId}">
+        <canvas class="point-pack-canvas" id="${pointPackId}-canvas"></canvas>
+        <div class="point-pack-user-interface-container" id="${pointPackId}-interface">
+          <button class="point-pack-toggle-user-interface">Show/Hide</button>
+          <form class="pkui-display">
+            <div>
+              <p>Vertices:</p>
+              <input class="pkui-input pkui-vertices" type="text" placeholder="vertex count..." value="${this.n}"></input>
+            </div>
+            <div>
+              <p>Iterations:</p>
+              <input class="pkui-input pkui-iterations" type="text" placeholder="iteration count..." value="${this.iterations}"></input>
+            </div>
+            <div>
+              <input class="pkui-submit" type="submit" value="Start"></input>
+            </div>
+          </form>
+        </div>
+      </div>
     `;
-    this.canvas = document.querySelector<HTMLCanvasElement>('#' + canvasId)!;
+    this.canvas = document.querySelector<HTMLCanvasElement>('#' + pointPackId + '-canvas')!;
+    this.interface = document.querySelector<HTMLDivElement>('#' + pointPackId + '-interface')!;
     this.width = 1000;
     this.height = 1000;
     this.centerX = this.width/2;
@@ -52,11 +80,13 @@ class PointPack {
     this.ctx = this.canvas.getContext('2d')!;
 
     this.mouseIsDown = false;
+    this.isInterfaceOpen = true;
+    this.isLoading = false;
 
     this.options = {
       clear: 'black',
       pointColor: '#d90000',
-      backPointColor: '#790000',
+      backPointColor: '#590000',
 
       edgeColor: '#dddddd',
       edgeBackColor: '#555555',
@@ -66,12 +96,17 @@ class PointPack {
     }
 
     this.nodes = [];
-    this.n = 14;
 
     this.generateEventListeners();
-    this.generateRandomNodes();
     //window.requestAnimationFrame(() => this.init(1000, 100000, 0));
-    this.gravitate(100000, 1000, 10000);
+    //this.gravitate(1000, 10000);
+    this.start();
+  }
+
+  start = () => {
+    this.nodes = [];
+    this.generateRandomNodes();
+    this.gravitate(1000, 10000);
   }
 
   init = (g: number, f: number, i: number) => {
@@ -81,8 +116,8 @@ class PointPack {
     window.requestAnimationFrame(() => this.init(g, f, i));
   }
 
-  gravitate = (loopCount: number, g: number, f: number) => {
-    for (let l = 0; l < loopCount; l++) {
+  gravitate = (g: number, f: number) => {
+    for (let l = 0; l < this.iterations; l++) {
       this.adjustForGravity(g, f);
     }
     this.calcEdges();
@@ -106,7 +141,7 @@ class PointPack {
         const dist = +this.distanceFormula(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z).toFixed(5);
         minDist = Math.min(minDist, dist);
 
-        if (dist < minDist*Math.sqrt(2) - 1) {
+        if (dist < minDist*Math.sqrt(1.9)) {
           dists.set(key, dist);
         }
 
@@ -116,7 +151,7 @@ class PointPack {
     }
 
     // add edges to be drawn
-    const tolerance = minDist*Math.sqrt(2) - 1;
+    const tolerance = minDist*Math.sqrt(1.9);
     for (const key of dists.keys()) {
       if (dists.get(key)! < tolerance) {
         const [i, j] = key.split('-');
@@ -278,6 +313,29 @@ class PointPack {
     this.canvas.addEventListener('mousemove', (e) => {
       if (!this.mouseIsDown) return;
       this.rotate(e.movementX, e.movementY);
+    });
+
+    this.interface.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    this.interface.getElementsByClassName('point-pack-toggle-user-interface')[0].addEventListener('click', () => {
+      this.isInterfaceOpen = !this.isInterfaceOpen;
+      this.interface.querySelectorAll<HTMLElement>('.pkui-display')[0].style.display = this.isInterfaceOpen ? 'block' : 'none';
+    });
+
+    this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].addEventListener('click', (e) => {
+      e.preventDefault();
+      const vertexCount = this.interface.querySelectorAll<HTMLInputElement>('.pkui-vertices')[0].value;
+      const iterations = this.interface.querySelectorAll<HTMLInputElement>('.pkui-iterations')[0].value;
+      if (Number.isNaN(+vertexCount) || Number.isNaN(+iterations)) return;
+      this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = true;
+      this.n = +vertexCount;
+      this.iterations = +iterations;
+      setTimeout(() => {
+        this.start();
+        this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = false;
+      }, 0);
     });
   }
 
