@@ -2,10 +2,12 @@ class Point {
   x: number;
   y: number;
   z: number;
+  edges: string[];
   constructor(x: number, y: number, z: number) {
     this.x = x;
     this.y = y;
     this.z = z;
+    this.edges = [];
   }
 }
 
@@ -22,10 +24,14 @@ class PointPack {
     pointColor: string;
     backPointColor: string;
 
+    edgeColor: string;
+    edgeBackColor: string;
+
+    edgeWidth: number;
     pointSize: number;
   }
 
-  sphereDiameter: number;
+  sphereRadius: number;
   nodes: Point[];
   n: number;
   constructor(canvasElement: HTMLElement, canvasId: string) {
@@ -38,38 +44,84 @@ class PointPack {
     this.height = 1000;
     this.centerX = this.width/2;
     this.centerY = this.height/2;
-    this.sphereDiameter = 470;
+    this.sphereRadius = 470;
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.ctx = this.canvas.getContext('2d')!;
 
     this.options = {
       clear: 'black',
-      pointColor: '#790000',
-      backPointColor: '#290000',
+      pointColor: '#d90000',
+      backPointColor: '#790000',
 
+      edgeColor: '#dddddd',
+      edgeBackColor: '#555555',
+
+      edgeWidth: 4,
       pointSize: 8
     }
 
     this.nodes = [];
-    this.n = 12;
+    this.n = 32;
 
     this.generateRandomNodes();
-    window.requestAnimationFrame(() => this.init(1000, 100000));
-    //this.gravitate(1000, 800, 8000);
+    //window.requestAnimationFrame(() => this.init(1000, 100000, 0));
+    this.gravitate(100000, 1000, 10000);
   }
 
-  private init = (g: number, f: number) => {
+  init = (g: number, f: number, i: number) => {
     this.adjustForGravity(g, f);
     this.render();
-    window.requestAnimationFrame(() => this.init(g, f));
+    //console.log(i++);
+    window.requestAnimationFrame(() => this.init(g, f, i));
   }
 
   gravitate = (loopCount: number, g: number, f: number) => {
     for (let l = 0; l < loopCount; l++) {
       this.adjustForGravity(g, f);
     }
+    this.calcEdges();
     this.render();
+  }
+
+  private calcEdges = () => {
+    const dists = new Map<string, number>();
+    const visited = new Set<string>();
+    let minDist = Infinity;
+    for (let i = 0; i < this.n; i++) {
+
+      for (let j = 0; j < this.n; j++) {
+        if (i === j) continue;
+        const key = [i, j].sort((a, b) => a - b).join('-');
+        if (visited.has(key)) continue;
+
+        const p1 = this.nodes[i];
+        const p2 = this.nodes[j];
+
+        const dist = +this.distanceFormula(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z).toFixed(5);
+        minDist = Math.min(minDist, dist);
+
+        if (dist < minDist*Math.sqrt(2)) {
+          dists.set(key, dist);
+        }
+
+        visited.add(key);
+      }
+
+    }
+
+    // add edges to be drawn
+    const tolerance = minDist*Math.sqrt(2);
+    for (const key of dists.keys()) {
+      if (dists.get(key)! < tolerance) {
+        const [i, j] = key.split('-');
+        this.nodes[+i].edges.push(key);
+        this.nodes[+j].edges.push(key);
+      }
+    }
+
+    console.log(minDist, dists);
+    console.log(this.nodes);
   }
 
   /**
@@ -84,11 +136,11 @@ class PointPack {
   }
 
   private generateRandomNode = () => {
-    const randX = (Math.random() - .5) * this.sphereDiameter;
-    const randY = (Math.random() - .5) * this.sphereDiameter;
-    const randZ = (Math.random() - .5) * this.sphereDiameter;
+    const randX = (Math.random() - .5) * this.sphereRadius;
+    const randY = (Math.random() - .5) * this.sphereRadius;
+    const randZ = (Math.random() - .5) * this.sphereRadius;
     const {x, y, z} = this.projectNodeToSphere(randX, randY, randZ);
-    return new Point(x*this.sphereDiameter, y*this.sphereDiameter, z*this.sphereDiameter);
+    return new Point(x*this.sphereRadius, y*this.sphereRadius, z*this.sphereRadius);
   }
 
   private adjustForGravity = (g: number, f: number) => {
@@ -112,23 +164,52 @@ class PointPack {
         }
       }
       const {x, y, z} = this.projectNodeToSphere(p1.x + fX,p1.y + fY, p1.z + fZ);
-      p1.x = x*this.sphereDiameter;
-      p1.y = y*this.sphereDiameter;
-      p1.z = z*this.sphereDiameter;
+      p1.x = x*this.sphereRadius;
+      p1.y = y*this.sphereRadius;
+      p1.z = z*this.sphereRadius;
     }
   }
 
   private render = () => {
     this.clearCanvas();
-    const drawFront: Point[] = [];
-    for (const node of this.nodes) {
+    const visitedEdges = new Set<string>();
+    const drawFrontEdges: number[][] = [];
+    const drawBackEdges: number[][] = [];
+    const drawFrontPoints: Point[] = [];
+    const drawBackPoints: Point[] = [];
+    for (let i = 0; i < this.nodes.length; i++) {
+      const node = this.nodes[i];
       if (node.z > 0) {
-        drawFront.push(node);
+        drawFrontPoints.push(node);
       } else {
-        this.drawNode(node);
+        drawBackPoints.push(node);
+      }
+
+      // draw edges
+      for (const edge of node.edges) {
+        if (visitedEdges.has(edge)) continue; // already drawn
+        const [i, j] = edge.split('-');
+        const {x, y, z} = this.nodes[+i];
+        const {x: dx, y: dy, z: dz} = this.nodes[+j];
+
+        if ((z + dz)/2 >= 0) {
+          drawFrontEdges.push([x, y, dx, dy]);
+        } else {
+          drawBackEdges.push([x, y, dx, dy]);
+        }
+        visitedEdges.add(edge);
       }
     }
-    for (const node of drawFront) {
+    for (const node of drawBackPoints) {
+      this.drawNode(node);
+    }
+    for (const node of drawBackEdges) {
+      this.drawEdge(node[0], node[1], node[2], node[3]);
+    }
+    for (const node of drawFrontEdges) {
+      this.drawEdge(node[0], node[1], node[2], node[3], true);
+    }
+    for (const node of drawFrontPoints) {
       this.drawNode(node, true);
     }
   }
@@ -149,10 +230,56 @@ class PointPack {
     this.ctx.fill()
   }
 
+  private drawEdge = (x: number, y: number, dx: number, dy: number, front: boolean = false) => {
+    this.ctx.beginPath();
+    this.ctx.moveTo(x+this.centerX, y+this.centerY);
+    this.ctx.lineTo(dx+this.centerX, dy+this.centerY);
+    this.ctx.lineWidth = this.options.edgeWidth;
+    this.ctx.strokeStyle = front ? this.options.edgeColor : this.options.edgeBackColor;
+    this.ctx.stroke();
+  }
+
   private clearCanvas = () => {
     this.ctx.fillStyle = this.options.clear;
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
+
+  calculateRotatedCoordinates = (
+    x: number,
+    y: number,
+    z: number,
+    multiX: number,
+    multiY: number,
+    multiZ: number,
+    deg: number
+  ) => {
+    // values are mislabeled to compensate for misaligned axes
+    const sY = Math.sin(deg*multiX);
+    const cY = Math.cos(deg*multiX);
+    const sZ = -Math.sin(deg*multiY);
+    const cZ = Math.cos(deg*multiY);
+    const sX = Math.sin(deg*multiZ);
+    const cX = Math.cos(deg*multiZ);
+    const nX = x*cX*cY + y*cX*sY*sZ - y*sX*cZ + z*cX*sY*cZ + z*sX*sZ;
+    const nY = x*sX*cY + y*sX*sY*sZ + y*cX*cZ + z*sX*sY*cZ - z*cX*sZ;
+    const nZ = -x*sY + y*cY*sZ + z*cY*cZ;
+    return {x: nX, y: nY, z: nZ}
+  }
+
+  private rotate = (x: number, y: number) => {
+    this.nodes.forEach((node) => {
+      const { x: newX, y: newY, z: newZ } = this.calculateRotatedCoordinates(node.x, node.y, node.z, x, y, 0, 0.002);
+      node.x = newX;
+      node.y = newY;
+      node.z = newZ;
+    });
+    this.render();
+  }
+
+  /**
+   * 
+   */
+  private getNearest = () => {}
 
 }
 
