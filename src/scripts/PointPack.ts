@@ -44,7 +44,7 @@ class PointPack {
     if (pointPackId.length < 5) throw new Error('id must be at least five characters');
 
     
-    this.n = Math.floor(Math.random() * 17) + 3;
+    this.n = 111;
     this.iterations = 10000;
 
     parentElement.innerHTML = parentElement.innerHTML + `
@@ -129,7 +129,7 @@ class PointPack {
   init = (g: number, f: number, step: number) => {
     this.adjustForGravity(g, f);
     this.calcEdges();
-    this.render();
+    this.render(this.iterations, step);
     if (step < 0) {
       window.cancelAnimationFrame(this.frame);
       return;
@@ -232,8 +232,14 @@ class PointPack {
     }
   }
 
-  private render = () => {
+  private render = (its: number = -1, st: number = -1) => {
     this.clearCanvas();
+    if (its > -1 && st > -1) {
+      const s = 5;
+      this.ctx.font = `Bold ${4*s}px Arial`;
+      this.ctx.fillStyle = "#bbbbbb";
+      this.ctx.fillText((its-st) + ' / ' + its, this.centerX*2 - ((its + '' + (its - st)).length * s*2) - 70, this.centerY*2 - 10);
+    }
     const visitedEdges = new Set<string>();
     const drawFrontEdges: number[][] = [];
     const drawBackEdges: number[][] = [];
@@ -360,6 +366,7 @@ class PointPack {
 
     this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].addEventListener('click', (e) => {
       e.preventDefault();
+      window.cancelAnimationFrame(this.frame);
       const vertexCount = this.interface.querySelectorAll<HTMLInputElement>('.pkui-vertices')[0].value;
       const iterations = this.interface.querySelectorAll<HTMLInputElement>('.pkui-iterations')[0].value;
       if (Number.isNaN(+vertexCount) || Number.isNaN(+iterations)) return;
