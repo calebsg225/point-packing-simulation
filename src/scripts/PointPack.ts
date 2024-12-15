@@ -2,12 +2,12 @@ class Point {
   x: number;
   y: number;
   z: number;
-  edges: string[];
+  edges: Set<string>;
   constructor(x: number, y: number, z: number) {
     this.x = x;
     this.y = y;
     this.z = z;
-    this.edges = [];
+    this.edges = new Set<string>();
   }
 }
 
@@ -21,6 +21,8 @@ class PointPack {
   mouseIsDown: boolean;
   isInterfaceOpen: boolean;
   isLoading: boolean;
+
+  frame: number;
 
   options: {
     clear: string;
@@ -53,11 +55,15 @@ class PointPack {
           <form class="pkui-display">
             <div>
               <p>Vertices:</p>
-              <input class="pkui-input pkui-vertices" type="text" placeholder="vertex count..." value="${this.n}"></input>
+              <input class="pkui-input pkui-vertices" type="text" placeholder="Vertex count..." value="${this.n}"></input>
             </div>
             <div>
-              <p>Iterations:</p>
-              <input class="pkui-input pkui-iterations" type="text" placeholder="iteration count..." value="${this.iterations}"></input>
+              <p>Steps:</p>
+              <input class="pkui-input pkui-iterations" type="text" placeholder="Step count..." value="${this.iterations}"></input>
+            </div>
+            <div>
+              <input class="pkui-render-steps" checked type="checkbox"></input>
+              <p>Render Steps (slow)</p>
             </div>
             <div>
               <input class="pkui-submit" type="submit" value="Start"></input>
@@ -75,6 +81,8 @@ class PointPack {
     this.sphereRadius = .95 * (Math.min(nw, nh, 1000)/2);
     this.canvas.width = nw;
     this.canvas.height = nh;
+
+    this.frame = 0;
 
     window.addEventListener('resize', () => {
       const nw = parentElement.clientWidth;
@@ -107,22 +115,27 @@ class PointPack {
     this.nodes = [];
 
     this.generateEventListeners();
-    //window.requestAnimationFrame(() => this.init(1000, 100000, 0));
-    //this.gravitate(1000, 10000);
-    this.start();
+
+    this.start(false);
   }
 
-  start = () => {
+  start = (renderSteps: boolean) => {
     this.nodes = [];
     this.generateRandomNodes();
-    this.gravitate(1000, 10000);
+    if (renderSteps) {this.gravitate(1000, 10000)}
+    else {this.frame = window.requestAnimationFrame(() => this.init(1000, 100000, this.iterations))}
   }
 
-  init = (g: number, f: number, i: number) => {
+  init = (g: number, f: number, step: number) => {
     this.adjustForGravity(g, f);
+    this.calcEdges();
     this.render();
-    //console.log(i++);
-    window.requestAnimationFrame(() => this.init(g, f, i));
+    if (step < 0) {
+      window.cancelAnimationFrame(this.frame);
+      return;
+    };
+    step--;
+    this.frame = window.requestAnimationFrame(() => this.init(g, f, step--));
   }
 
   gravitate = (g: number, f: number) => {
@@ -162,10 +175,13 @@ class PointPack {
     // add edges to be drawn
     const tolerance = minDist*Math.sqrt(1.9);
     for (const key of dists.keys()) {
+      const [i, j] = key.split('-');
       if (dists.get(key)! < tolerance) {
-        const [i, j] = key.split('-');
-        this.nodes[+i].edges.push(key);
-        this.nodes[+j].edges.push(key);
+        this.nodes[+i].edges.add(key);
+        this.nodes[+j].edges.add(key);
+      } else {
+        this.nodes[+i].edges.delete(key);
+        this.nodes[+j].edges.delete(key);
       }
     }
   }
@@ -351,7 +367,7 @@ class PointPack {
       this.n = +vertexCount;
       this.iterations = +iterations;
       setTimeout(() => {
-        this.start();
+        this.start(!this.interface.querySelectorAll<HTMLInputElement>('.pkui-render-steps')[0].checked);
         this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = false;
       }, 10);
     });
