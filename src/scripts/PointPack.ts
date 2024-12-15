@@ -239,9 +239,9 @@ class PointPack {
         const {x: dx, y: dy, z: dz} = this.nodes[+j];
 
         if ((z + dz)/2 >= 0) {
-          drawFrontEdges.push([x, y, dx, dy]);
+          drawFrontEdges.push([x, y, z, dx, dy, dz]);
         } else {
-          drawBackEdges.push([x, y, dx, dy]);
+          drawBackEdges.push([x, y, z, dx, dy, dz]);
         }
         visitedEdges.add(edge);
       }
@@ -250,10 +250,10 @@ class PointPack {
       this.drawNode(node);
     }
     for (const node of drawBackEdges) {
-      this.drawEdge(node[0], node[1], node[2], node[3]);
+      this.drawEdge(node[0], node[1], node[2], node[3], node[4], node[5]);
     }
     for (const node of drawFrontEdges) {
-      this.drawEdge(node[0], node[1], node[2], node[3], true);
+      this.drawEdge(node[0], node[1], node[2], node[3], node[4], node[5], true);
     }
     for (const node of drawFrontPoints) {
       this.drawNode(node, true);
@@ -269,19 +269,26 @@ class PointPack {
     return {x: x/dist, y: y/dist, z: z/dist};
   }
 
+  private d = (n: number, z: number, isXAxis: boolean = false): number => {
+    const sr = this.sphereRadius;
+    return n*(1+z*sr/4000)*sr + (isXAxis ? this.centerX : this.centerY);
+  }
+
   private drawNode = (point: Point, front: boolean = false) => {
-    const sr = this.sphereRadius
     this.ctx.beginPath();
-    this.ctx.arc(point.x * sr+this.centerX, point.y * sr+this.centerY, this.options.pointSize, 0, 2*Math.PI);
+    this.ctx.arc(this.d(point.x, point.z, true), this.d(point.y, point.z) , this.options.pointSize, 0, 2*Math.PI);
     this.ctx.fillStyle = front ? this.options.pointColor : this.options.backPointColor;
     this.ctx.fill()
   }
 
-  private drawEdge = (x: number, y: number, dx: number, dy: number, front: boolean = false) => {
-    const sr = this.sphereRadius
+  private drawEdge = (x: number, y: number, z: number, dx: number, dy: number, dz: number, front: boolean = false) => {
+    const nx = this.d(x, z, true);
+    const ny = this.d(y, z);
+    const ndx = this.d(dx, dz, true);
+    const ndy = this.d(dy, dz);
     this.ctx.beginPath();
-    this.ctx.moveTo(x*sr+this.centerX, y*sr+this.centerY);
-    this.ctx.lineTo(dx*sr+this.centerX, dy*sr+this.centerY);
+    this.ctx.moveTo(nx, ny);
+    this.ctx.lineTo(ndx, ndy);
     this.ctx.lineWidth = this.options.edgeWidth;
     this.ctx.strokeStyle = front ? this.options.edgeColor : this.options.edgeBackColor;
     this.ctx.stroke();
