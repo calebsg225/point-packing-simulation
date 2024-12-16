@@ -238,7 +238,7 @@ class PointPack {
       const s = 5;
       this.ctx.font = `Bold ${4*s}px Arial`;
       this.ctx.fillStyle = "#bbbbbb";
-      this.ctx.fillText((its-st) + ' / ' + its, this.centerX*2 - ((its + '' + (its - st)).length * s*2) - 30, this.centerY*2 - 10);
+      this.ctx.fillText((its-st) + ' / ' + its, this.centerX*2 - ((its + '' + (its - st)).length * s*2) - (s*6), s*4);
     }
     const visitedEdges = new Set<string>();
     const drawFrontEdges: number[][] = [];
