@@ -162,10 +162,8 @@ class PointPack {
 
         const dist = +this.distanceFormula(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z).toFixed(5);
         minDist = Math.min(minDist, dist);
-
-        if (dist < minDist*Math.sqrt(1.9)) {
-          dists.set(key, dist);
-        }
+        
+        dists.set(key, dist);
 
         visited.add(key);
       }
