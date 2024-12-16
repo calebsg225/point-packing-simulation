@@ -108,8 +108,9 @@ class PointPack {
       edgeColor: '#dddddd',
       edgeBackColor: '#555555',
 
-      edgeWidth: 4,
-      pointSize: 8
+      
+      pointSize: Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1),
+      edgeWidth: Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1)
     }
 
     this.nodes = [];
@@ -162,7 +163,7 @@ class PointPack {
 
         const dist = +this.distanceFormula(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z).toFixed(5);
         minDist = Math.min(minDist, dist);
-        
+
         dists.set(key, dist);
 
         visited.add(key);
@@ -371,6 +372,9 @@ class PointPack {
       this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = true;
       this.n = +vertexCount;
       this.iterations = +iterations;
+      this.options.pointSize = Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1);
+      this.options.edgeWidth = Math.max(Math.floor(1+(10-(10*this.n/(this.sphereRadius*2)))), 1);
+      //this.options.edgeWidth = Math.floor(this.n);
       setTimeout(() => {
         this.start(!this.interface.querySelectorAll<HTMLInputElement>('.pkui-render-steps')[0].checked);
         this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = false;
