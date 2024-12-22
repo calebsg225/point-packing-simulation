@@ -19,6 +19,8 @@ class PointPack {
   centerY: number;
 
   mouseIsDown: boolean;
+  prevTouchX: number;
+  prevToucnY: number;
   isInterfaceOpen: boolean;
   isLoading: boolean;
 
@@ -97,6 +99,8 @@ class PointPack {
 
     this.ctx = this.canvas.getContext('2d')!;
     this.mouseIsDown = false;
+    this.prevTouchX = 0;
+    this.prevToucnY = 0;
     this.isInterfaceOpen = true;
     this.isLoading = false;
 
@@ -352,6 +356,27 @@ class PointPack {
     this.canvas.addEventListener('mousemove', (e) => {
       if (!this.mouseIsDown) return;
       this.rotate(e.movementX, e.movementY);
+    });
+
+    this.canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      // when user first touches the screen, take note of finger coords
+      this.prevTouchX = e.touches[0].clientX;
+      this.prevToucnY = e.touches[0].clientY;
+    });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const mX = e.touches[0].clientX;
+      const mY = e.touches[0].clientY;
+      // when moving after already touching, calculate delta
+      const deltaX = mX - this.prevTouchX;
+      const deltaY = mY - this.prevToucnY;
+      // rotate by delta
+      this.rotate(2*deltaX, 2*deltaY);
+      // update new finger coords
+      this.prevTouchX = mX;
+      this.prevToucnY = mY;
     });
 
     this.interface.addEventListener('click', (e) => {
