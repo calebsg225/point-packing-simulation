@@ -11,6 +11,30 @@ class Point {
   }
 }
 
+const defaultColors = [
+  "#FF0000",
+  "#00FF00",
+  "#0000FF",
+  "#FFFF00",
+  "#00FFFF",
+  "#FF00FF",
+  "#820000",
+  "#008200",
+  "#000082",
+  "#828200",
+  "#008282",
+  "#820082",
+  "#7B3C00",
+  "#FF7B00",
+  "#FF7B7B",
+  "#7BFF7B",
+  "#7B7BFF",
+  "#FFFF7B",
+  "#7BFFFF",
+  "#FF7BFF",
+  "#FFBB7B",
+]
+
 class PointPack {
   interface: HTMLDivElement;
   canvas: HTMLCanvasElement;
@@ -23,6 +47,7 @@ class PointPack {
   prevToucnY: number;
   isInterfaceOpen: boolean;
   isLoading: boolean;
+  edgeColorCodes: Map<number, string>;
 
   frame: number;
 
@@ -46,7 +71,7 @@ class PointPack {
     if (pointPackId.length < 5) throw new Error('id must be at least five characters');
 
     
-    this.n = 111;
+    this.n = 12;
     this.iterations = 10000;
 
     parentElement.innerHTML = parentElement.innerHTML + `
@@ -84,6 +109,8 @@ class PointPack {
     this.canvas.width = nw;
     this.canvas.height = nh;
 
+    this.edgeColorCodes = new Map();
+
     this.frame = 0;
 
     window.addEventListener('resize', () => {
@@ -106,15 +133,15 @@ class PointPack {
 
     this.options = {
       clear: 'black',
-      pointColor: '#d90000',
-      backPointColor: '#590000',
+      pointColor: '#ffffff',
+      backPointColor: '#ffffff55',
 
       edgeColor: '#dddddd',
       edgeBackColor: '#555555',
 
       
-      pointSize: Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1),
-      edgeWidth: Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1)
+      pointSize: 5, //Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1),
+      edgeWidth: 5 //Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1)
     }
 
     this.nodes = [];
@@ -179,7 +206,8 @@ class PointPack {
     const tolerance = minDist*Math.sqrt(1.9);
     for (const key of dists.keys()) {
       const [i, j] = key.split('-');
-      if (dists.get(key)! < tolerance) {
+      const l = dists.get(key)!;
+      if (l < tolerance) {
         this.nodes[+i].edges.add(key);
         this.nodes[+j].edges.add(key);
       } else {
@@ -248,6 +276,7 @@ class PointPack {
     const drawBackEdges: number[][] = [];
     const drawFrontPoints: Point[] = [];
     const drawBackPoints: Point[] = [];
+    const edgeColorMap: Map<number, number> = new Map();
     for (let i = 0; i < this.nodes.length; i++) {
       const node = this.nodes[i];
       if (node.z > 0) {
@@ -257,16 +286,29 @@ class PointPack {
       }
 
       // draw edges
+      // all edges here are going to be drawn (obviously)
       for (const edge of node.edges) {
         if (visitedEdges.has(edge)) continue; // already drawn
         const [i, j] = edge.split('-');
         const {x, y, z} = this.nodes[+i];
         const {x: dx, y: dy, z: dz} = this.nodes[+j];
 
-        if ((z + dz)/2 >= 0) {
-          drawFrontEdges.push([x, y, z, dx, dy, dz]);
+        const dist = this.distanceFormula(x, y, z, dx, dy, dz);
+        
+        const edgeColorKey = parseFloat(dist.toPrecision(4));
+        let colorCode: number;
+        if (edgeColorMap.has(edgeColorKey)) {
+          colorCode = edgeColorMap.get(edgeColorKey)!;
         } else {
-          drawBackEdges.push([x, y, z, dx, dy, dz]);
+          const edgeColorCode = edgeColorMap.size;
+          edgeColorMap.set(edgeColorKey, edgeColorCode);
+          colorCode = edgeColorCode;
+        }
+
+        if ((z + dz)/2 >= 0) {
+          drawFrontEdges.push([x, y, z, dx, dy, dz, colorCode]);
+        } else {
+          drawBackEdges.push([x, y, z, dx, dy, dz, colorCode]);
         }
         visitedEdges.add(edge);
       }
@@ -275,10 +317,10 @@ class PointPack {
       this.drawNode(node);
     }
     for (const node of drawBackEdges) {
-      this.drawEdge(node[0], node[1], node[2], node[3], node[4], node[5]);
+      this.drawEdge(node[0], node[1], node[2], node[3], node[4], node[5], node[6]);
     }
     for (const node of drawFrontEdges) {
-      this.drawEdge(node[0], node[1], node[2], node[3], node[4], node[5], true);
+      this.drawEdge(node[0], node[1], node[2], node[3], node[4], node[5], node[6], true);
     }
     for (const node of drawFrontPoints) {
       this.drawNode(node, true);
@@ -306,7 +348,7 @@ class PointPack {
     this.ctx.fill()
   }
 
-  private drawEdge = (x: number, y: number, z: number, dx: number, dy: number, dz: number, front: boolean = false) => {
+  private drawEdge = (x: number, y: number, z: number, dx: number, dy: number, dz: number, colorCode: number, front: boolean = false) => {
     const nx = this.d(x, z, true);
     const ny = this.d(y, z);
     const ndx = this.d(dx, dz, true);
@@ -315,9 +357,30 @@ class PointPack {
     this.ctx.moveTo(nx, ny);
     this.ctx.lineTo(ndx, ndy);
     this.ctx.lineWidth = this.options.edgeWidth;
-    this.ctx.strokeStyle = front ? this.options.edgeColor : this.options.edgeBackColor;
+    const opacity = front ? '' : '55';
+    //this.ctx.strokeStyle = front ? this.options.edgeColor : this.options.edgeBackColor;
+    let color = '#FFFFFF';
+    if (colorCode < defaultColors.length) {
+      color = defaultColors[colorCode];
+    } else {
+      if (!this.edgeColorCodes.has(colorCode)) {
+        this.edgeColorCodes.set(colorCode, this.randomColor());
+      }
+      color = this.edgeColorCodes.get(colorCode)!;
+    }
+    //this.ctx.strokeStyle = defaultColors.length > colorCode ? defaultColors[colorCode] + opacity : this.randomColor() + opacity;
+    this.ctx.strokeStyle = color + opacity;
     this.ctx.stroke();
   }
+
+  private randomColor = () => {
+		const str = [];
+		str.push("#");
+		for (let i = 0; i < 6; i++) {
+			str.push("123456789ABCDEF"[Math.floor(Math.random() * 15)]);
+		}
+		return str.join("");
+	}
 
   private clearCanvas = () => {
     this.ctx.fillStyle = this.options.clear;
@@ -397,8 +460,8 @@ class PointPack {
       this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = true;
       this.n = +vertexCount;
       this.iterations = +iterations;
-      this.options.pointSize = Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1);
-      this.options.edgeWidth = Math.max(Math.floor(1+(10-(10*this.n/(this.sphereRadius*2)))), 1);
+      this.options.pointSize = 5, //Math.max(Math.floor(2+(10-(10*this.n/(this.sphereRadius*2)))), 1);
+      this.options.edgeWidth = 5, //Math.max(Math.floor(1+(10-(10*this.n/(this.sphereRadius*2)))), 1);
       //this.options.edgeWidth = Math.floor(this.n);
       setTimeout(() => {
         this.start(!this.interface.querySelectorAll<HTMLInputElement>('.pkui-render-steps')[0].checked);
