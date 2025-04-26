@@ -81,8 +81,8 @@ class PointPack {
           <button class="point-pack-toggle-user-interface">Show/Hide</button>
           <form class="pkui-display">
             <div>
-              <p>Vertices:</p>
-              <input class="pkui-input pkui-vertices" type="text" placeholder="Vertex count..." value="${this.n}"></input>
+              <p>Points:</p>
+              <input class="pkui-input pkui-points" type="text" placeholder="Point count..." value="${this.n}"></input>
             </div>
             <div>
               <p>Steps:</p>
@@ -454,7 +454,7 @@ class PointPack {
     this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].addEventListener('click', (e) => {
       e.preventDefault();
       window.cancelAnimationFrame(this.frame);
-      const vertexCount = this.interface.querySelectorAll<HTMLInputElement>('.pkui-vertices')[0].value;
+      const vertexCount = this.interface.querySelectorAll<HTMLInputElement>('.pkui-points')[0].value;
       const iterations = this.interface.querySelectorAll<HTMLInputElement>('.pkui-iterations')[0].value;
       if (Number.isNaN(+vertexCount) || Number.isNaN(+iterations)) return;
       this.interface.querySelectorAll<HTMLInputElement>('.pkui-submit')[0].disabled = true;
